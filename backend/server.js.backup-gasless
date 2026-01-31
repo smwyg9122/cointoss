@@ -1,0 +1,451 @@
+const express = require('express');
+const cors = require('cors');
+const sqlite3 = require('sqlite3').verbose();
+const { ethers } = require('ethers');
+require('dotenv').config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const db = new sqlite3.Database('./cointoss.db');
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    address TEXT PRIMARY KEY,
+    nickname TEXT UNIQUE NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  )`);
+  
+  db.run(`CREATE TABLE IF NOT EXISTS bets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    address TEXT NOT NULL,
+    choice INTEGER NOT NULL,
+    amount TEXT NOT NULL,
+    outcome INTEGER NOT NULL,
+    won INTEGER NOT NULL,
+    pnl TEXT NOT NULL,
+    nonce TEXT UNIQUE NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  )`);
+  
+  db.run(`CREATE INDEX IF NOT EXISTS idx_bets_address ON bets(address)`);
+});
+
+const CHAIN_ID = parseInt(process.env.CHAIN_ID || '97');
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const SIGNER_PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY;
+const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
+
+const RPC_URL = CHAIN_ID === 97 
+  ? 'https://data-seed-prebsc-1-s1.binance.org:8545'
+  : 'https://bsc-dataseed1.binance.org';
+
+if (!CONTRACT_ADDRESS || !SIGNER_PRIVATE_KEY || !RELAYER_PRIVATE_KEY) {
+  console.error('❌ ERROR: CONTRACT_ADDRESS, SIGNER_PRIVATE_KEY, and RELAYER_PRIVATE_KEY must be set in .env');
+  process.exit(1);
+}
+
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+const signerWallet = new ethers.Wallet(SIGNER_PRIVATE_KEY);
+const relayerWallet = new ethers.Wallet(RELAYER_PRIVATE_KEY, provider);
+
+const COINTOSS_ABI = [
+  {
+    inputs: [
+      { name: 'player', type: 'address' },
+      { name: 'choice', type: 'uint8' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'nonce', type: 'bytes32' },
+      { name: 'outcome', type: 'uint8' },
+      { name: 'expiresAt', type: 'uint256' },
+      { name: 'signature', type: 'bytes' },
+    ],
+    name: 'placeBetSignedGasless',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'player', type: 'address' }],
+    name: 'getRemainingGasless',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+];
+
+const cointossContract = new ethers.Contract(CONTRACT_ADDRESS, COINTOSS_ABI, relayerWallet);
+
+app.post('/api/nickname', (req, res) => {
+  const { address, nickname } = req.body;
+  
+  if (!address || !nickname) {
+    return res.status(400).json({ error: 'Address and nickname required' });
+  }
+  
+  if (!ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Invalid address' });
+  }
+  
+  if (nickname.length < 3 || nickname.length > 20) {
+    return res.status(400).json({ error: 'Nickname must be 3-20 characters' });
+  }
+  
+  const normalizedAddress = address.toLowerCase();
+  const trimmedNickname = nickname.trim();
+  
+  db.run(
+    'INSERT INTO users (address, nickname) VALUES (?, ?)',
+    [normalizedAddress, trimmedNickname],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(409).json({ error: 'Nickname or address already taken' });
+        }
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ success: true, address: normalizedAddress, nickname: trimmedNickname });
+    }
+  );
+});
+
+app.get('/api/me', (req, res) => {
+  const { address } = req.query;
+  
+  if (!address || !ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Valid address required' });
+  }
+  
+  const normalizedAddress = address.toLowerCase();
+  
+  db.get('SELECT * FROM users WHERE address = ?', [normalizedAddress], (err, user) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (!user) {
+      return res.json({ exists: false });
+    }
+    
+    db.all(
+      `SELECT 
+        COUNT(*) as plays,
+        SUM(CAST(pnl AS REAL)) as total_pnl,
+        SUM(CASE WHEN won = 1 THEN 1 ELSE 0 END) as wins
+      FROM bets WHERE address = ?`,
+      [normalizedAddress],
+      (err, stats) => {
+        if (err) {
+          return res.status(500).json({ error: 'Database error' });
+        }
+        
+        res.json({
+          exists: true,
+          nickname: user.nickname,
+          address: user.address,
+          plays: stats[0].plays || 0,
+          pnl: (stats[0].total_pnl || 0).toString(),
+          wins: stats[0].wins || 0
+        });
+      }
+    );
+  });
+});
+
+app.post('/api/bet/gasless', async (req, res) => {
+  const { address, choice, amount } = req.body;
+  
+  if (!address || choice === undefined || !amount) {
+    return res.status(400).json({ error: 'Address, choice, and amount required' });
+  }
+  
+  if (!ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Invalid address' });
+  }
+  
+  const normalizedAddress = address.toLowerCase();
+  
+  db.get('SELECT * FROM users WHERE address = ?', [normalizedAddress], async (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    try {
+      const remaining = await cointossContract.getRemainingGasless(normalizedAddress);
+      
+      if (remaining === 0n) {
+        return res.status(429).json({ 
+          error: 'Daily gasless limit reached',
+          remainingFree: 0
+        });
+      }
+      
+      const random = Math.floor(Math.random() * 100);
+      const outcome = random < 35 ? choice : (choice === 0 ? 1 : 0);
+      
+      const won = choice === outcome;
+      const amountBN = ethers.parseEther(amount.toString());
+      const pnl = won ? amountBN : -amountBN;
+      
+      const nonce = ethers.hexlify(ethers.randomBytes(32));
+      const expiresAt = Math.floor(Date.now() / 1000) + 300;
+      
+      const messageHash = ethers.solidityPackedKeccak256(
+        ['address', 'uint8', 'uint256', 'bytes32', 'uint8', 'uint256', 'uint256', 'address'],
+        [normalizedAddress, choice, amountBN, nonce, outcome, expiresAt, CHAIN_ID, CONTRACT_ADDRESS]
+      );
+      
+      const signature = await signerWallet.signMessage(ethers.getBytes(messageHash));
+      
+      console.log('🚀 Sending gasless transaction for', normalizedAddress);
+      
+      const tx = await cointossContract.placeBetSignedGasless(
+        normalizedAddress,
+        choice,
+        amountBN,
+        nonce,
+        outcome,
+        expiresAt,
+        signature,
+        { gasLimit: 500000 }
+      );
+      
+      console.log('⏳ Waiting for confirmation...', tx.hash);
+      
+      const receipt = await tx.wait();
+      
+      console.log('✅ Transaction confirmed!', receipt.hash);
+      
+      db.run(
+        'INSERT INTO bets (address, choice, amount, outcome, won, pnl, nonce) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [normalizedAddress, choice, amountBN.toString(), outcome, won ? 1 : 0, pnl.toString(), nonce],
+        (err) => {
+          if (err) {
+            console.error('DB error:', err);
+          }
+        }
+      );
+      
+      res.json({
+        success: true,
+        won,
+        outcome,
+        txHash: receipt.hash,
+        gasUsed: receipt.gasUsed.toString(),
+        remainingFree: Number(remaining) - 1,
+        message: '⛽ Gas fee paid by platform! 🎁'
+      });
+      
+    } catch (error) {
+      console.error('Gasless bet error:', error);
+      
+      if (error.message.includes('insufficient funds')) {
+        return res.status(503).json({ 
+          error: 'Platform gas funds low',
+          code: 'INSUFFICIENT_GAS_FUNDS'
+        });
+      }
+      
+      res.status(500).json({ error: 'Transaction failed: ' + error.message });
+    }
+  });
+});
+
+app.get('/api/gasless/remaining', async (req, res) => {
+  const { address } = req.query;
+  
+  if (!address || !ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Valid address required' });
+  }
+  
+  try {
+    const remaining = await cointossContract.getRemainingGasless(address);
+    const relayerBalance = await provider.getBalance(relayerWallet.address);
+    
+    res.json({
+      remainingFree: Number(remaining),
+      maxDaily: 10,
+      platformGasBalance: ethers.formatEther(relayerBalance),
+      gaslessEnabled: relayerBalance > ethers.parseEther('0.01')
+    });
+  } catch (error) {
+    console.error('Error fetching gasless info:', error);
+    res.status(500).json({ error: 'Failed to fetch gasless information' });
+  }
+});
+
+app.get('/api/admin/relayer-status', async (req, res) => {
+  try {
+    const balance = await provider.getBalance(relayerWallet.address);
+    const nonce = await provider.getTransactionCount(relayerWallet.address);
+    const gasPrice = await provider.getFeeData();
+    
+    res.json({
+      address: relayerWallet.address,
+      balance: ethers.formatEther(balance),
+      nonce,
+      gasPrice: ethers.formatUnits(gasPrice.gasPrice || 0n, 'gwei'),
+      estimatedTransactionsLeft: Math.floor(Number(balance) / 50000000000000000)
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch relayer status' });
+  }
+});
+
+app.get('/api/leaderboard', (req, res) => {
+  const { sort = 'pnl' } = req.query;
+  
+  const orderBy = sort === 'plays' 
+    ? 'plays DESC, total_pnl DESC' 
+    : 'total_pnl DESC, plays DESC';
+  
+  db.all(
+    `SELECT 
+      u.nickname,
+      u.address,
+      COUNT(b.id) as plays,
+      COALESCE(SUM(CAST(b.pnl AS REAL)), 0) as total_pnl,
+      SUM(CASE WHEN b.won = 1 THEN 1 ELSE 0 END) as wins
+    FROM users u
+    LEFT JOIN bets b ON u.address = b.address
+    GROUP BY u.address
+    ORDER BY ${orderBy}
+    LIMIT 100`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      const leaderboard = rows.map(row => ({
+        nickname: row.nickname,
+        address: row.address,
+        plays: row.plays || 0,
+        pnl: row.total_pnl.toString(),
+        wins: row.wins || 0,
+        winRate: row.plays > 0 ? ((row.wins / row.plays) * 100).toFixed(1) : '0.0'
+      }));
+      
+      res.json({ leaderboard });
+    }
+  );
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+  console.log(`⛽ Gasless transactions: ENABLED`);
+  console.log(`💰 Relayer address: ${relayerWallet.address}`);
+});
+// Frontend 호환 라우트 추가
+app.get('/api/gasless/info', async (req, res) => {
+  const { address } = req.query;
+  
+  if (!address || !ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Valid address required' });
+  }
+  
+  try {
+    const remaining = await cointossContract.getRemainingGasless(address);
+    
+    res.json({
+      remainingFree: Number(remaining),
+      maxDaily: 10
+    });
+  } catch (error) {
+    console.error('Error fetching gasless info:', error);
+    res.status(500).json({ error: 'Failed to fetch gasless information' });
+  }
+});
+
+app.post('/api/bet', async (req, res) => {
+  const { address, choice, amount } = req.body;
+  
+  if (!address || choice === undefined || !amount) {
+    return res.status(400).json({ error: 'Address, choice, and amount required' });
+  }
+  
+  if (!ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Invalid address' });
+  }
+  
+  const normalizedAddress = address.toLowerCase();
+  
+  db.get('SELECT * FROM users WHERE address = ?', [normalizedAddress], async (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    try {
+      const remaining = await cointossContract.getRemainingGasless(normalizedAddress);
+      
+      if (remaining === 0n) {
+        return res.status(429).json({ 
+          error: 'Daily gasless limit reached',
+          remainingFree: 0
+        });
+      }
+      
+      const random = Math.floor(Math.random() * 100);
+      const outcome = random < 35 ? choice : (choice === 0 ? 1 : 0);
+      
+      const won = choice === outcome;
+      const amountBN = ethers.parseEther(amount.toString());
+      const pnl = won ? amountBN : -amountBN;
+      
+      const nonce = ethers.hexlify(ethers.randomBytes(32));
+      const expiresAt = Math.floor(Date.now() / 1000) + 300;
+      
+      const messageHash = ethers.solidityPackedKeccak256(
+        ['address', 'uint8', 'uint256', 'bytes32', 'uint8', 'uint256', 'uint256', 'address'],
+        [normalizedAddress, choice, amountBN, nonce, outcome, expiresAt, CHAIN_ID, CONTRACT_ADDRESS]
+      );
+      
+      const signature = await signerWallet.signMessage(ethers.getBytes(messageHash));
+      
+      console.log('🚀 Sending gasless transaction for', normalizedAddress);
+      
+      const tx = await cointossContract.placeBetSignedGasless(
+        normalizedAddress,
+        choice,
+        amountBN,
+        nonce,
+        outcome,
+        expiresAt,
+        signature,
+        { gasLimit: 500000 }
+      );
+      
+      console.log('⏳ Waiting for confirmation...', tx.hash);
+      
+      const receipt = await tx.wait();
+      
+      console.log('✅ Transaction confirmed!', receipt.hash);
+      
+      db.run(
+        'INSERT INTO bets (address, choice, amount, outcome, won, pnl, nonce) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [normalizedAddress, choice, amountBN.toString(), outcome, won ? 1 : 0, pnl.toString(), nonce],
+        (err) => {
+          if (err) {
+            console.error('DB error:', err);
+          }
+        }
+      );
+      
+      res.json({
+        success: true,
+        won,
+        outcome,
+        amount: amount,
+        txHash: receipt.hash,
+        gasless: true,
+        remainingFree: Number(remaining) - 1
+      });
+      
+    } catch (error) {
+      console.error('Bet error:', error);
+      res.status(500).json({ error: 'Transaction failed: ' + error.message });
+    }
+  });
+});
