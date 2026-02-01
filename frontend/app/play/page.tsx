@@ -7,6 +7,7 @@ import { API_BASE_URL, CONTRACTS } from '@/config/wagmi'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import BankrollDisplay from '@/components/BankrollDisplay'
+import CoinFlip from '@/components/CoinFlip'
 
 const BET_AMOUNTS = [1, 2, 4, 8, 16]
 
@@ -28,6 +29,7 @@ export default function PlayPage() {
   const [approving, setApproving] = useState(false)
   const [betting, setBetting] = useState(false)
   const [gaslessInfo, setGaslessInfo] = useState<any>(null)
+  const [isFlipping, setIsFlipping] = useState(false)
 
   const { writeContract: approveWrite, data: approveHash } = useWriteContract()
   const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
@@ -53,13 +55,6 @@ export default function PlayPage() {
     }
   }, [address])
 
-  useEffect(() => {
-    if (approveSuccess) {
-      refetchAllowance()
-      setApproving(false)
-    }
-  }, [approveSuccess])
-  
   useEffect(() => {
     if (approveSuccess) {
       refetchAllowance()
@@ -110,6 +105,8 @@ export default function PlayPage() {
 
   const handleBet = async () => {
     setBetting(true)
+    setIsFlipping(true)
+    
     try {
       const res = await fetch(`${API_BASE_URL}/api/bet`, {
         method: 'POST',
@@ -124,16 +121,22 @@ export default function PlayPage() {
       const data = await res.json()
 
       if (!res.ok) {
+        setIsFlipping(false)
         throw new Error(data.error || 'Bet failed')
       }
 
+      // 동전 애니메이션 대기 (2.5초)
+      await new Promise(resolve => setTimeout(resolve, 2500))
+      
       setLastResult(data)
+      setIsFlipping(false)
       setShowResult(true)
       fetchUser()
       fetchGaslessInfo()
       refetchBalance()
     } catch (err: any) {
       console.error('Bet error:', err)
+      setIsFlipping(false)
       alert(err.message)
     } finally {
       setBetting(false)
@@ -245,6 +248,14 @@ export default function PlayPage() {
           )}
         </div>
       </div>
+
+      {isFlipping && (
+        <CoinFlip
+          isFlipping={isFlipping}
+          result={lastResult?.outcome === 0 ? 'heads' : 'tails'}
+          onComplete={() => {}}
+        />
+      )}
 
       {showResult && lastResult && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
