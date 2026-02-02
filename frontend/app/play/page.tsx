@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import BankrollDisplay from '@/components/BankrollDisplay'
 import CoinFlip from '@/components/CoinFlip'
+import CoinFlickAnimation from '@/components/CoinFlickAnimation'
 
 const BET_AMOUNTS = [1, 2, 4, 8, 16]
 
@@ -142,6 +143,9 @@ export default function PlayPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black p-4">
+      {/* 동전 튕기기 애니메이션 */}
+      <CoinFlickAnimation />
+      
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-white">🪙 Coin Toss</h1>
@@ -248,7 +252,7 @@ export default function PlayPage() {
         <CoinFlip
           isFlipping={isFlipping}
           result={lastResult?.outcome === 0 ? 'heads' : 'tails'}
-          onComplete={() => { setTimeout(() => { setIsFlipping(false); setShowResult(true) }, 2000) }}
+          onComplete={() => { setTimeout(() => { setIsFlipping(false); setShowResult(true) }, 800) }}
         />
       )}
 
