@@ -20,7 +20,7 @@ export default function CoinFlip({ isFlipping, result, onComplete }: CoinFlipPro
         setShowResult(true)
         // 결과 표시 직후 onComplete 호출
         if (onComplete) {
-          setTimeout(onComplete, 100)
+          setTimeout(onComplete, 0)
         }
       }, 2000)
       return () => clearTimeout(timer)
