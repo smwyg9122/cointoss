@@ -1,45 +1,93 @@
 'use client'
 
+import Image from 'next/image'
+
 export default function CoinFlickAnimation() {
   return (
     <>
-      {/* 왼쪽 손가락 - 베팅 창 옆 */}
-      <div className="fixed left-4 md:left-8 bottom-[15%] md:bottom-[20%] pointer-events-none z-10">
-        <div className="relative">
-          {/* 동전들 */}
-          <div className="absolute bottom-20">
-            <div className="text-4xl md:text-6xl animate-flick-coin-1">🪙</div>
-          </div>
-          <div className="absolute bottom-20" style={{ animationDelay: '0.3s' }}>
-            <div className="text-3xl md:text-5xl animate-flick-coin-2">🪙</div>
-          </div>
-          <div className="absolute bottom-20" style={{ animationDelay: '0.6s' }}>
-            <div className="text-2xl md:text-4xl animate-flick-coin-3">🪙</div>
+      <div className="fixed left-8 md:left-16 bottom-[15%] md:bottom-[20%] pointer-events-none z-10">
+        <div className="relative w-32 h-40">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-16 animate-flick-coin-shot">
+            <Image
+              src="/coin-heads.png"
+              alt="coin"
+              width={80}
+              height={80}
+              className="w-16 h-16 md:w-20 md:h-20"
+            />
           </div>
           
-          {/* 손가락 */}
-          <div className="text-6xl md:text-8xl animate-flick-hand-left">
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 bottom-16 animate-flick-coin-shot"
+            style={{ animationDelay: '0.4s' }}
+          >
+            <Image
+              src="/coin-tails.png"
+              alt="coin"
+              width={80}
+              height={80}
+              className="w-14 h-14 md:w-16 md:h-16"
+            />
+          </div>
+          
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 bottom-16 animate-flick-coin-shot"
+            style={{ animationDelay: '0.8s' }}
+          >
+            <Image
+              src="/coin-heads.png"
+              alt="coin"
+              width={80}
+              height={80}
+              className="w-12 h-12 md:w-14 md:h-14"
+            />
+          </div>
+          
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 text-7xl md:text-8xl animate-flick-finger-up">
             👆
           </div>
         </div>
       </div>
 
-      {/* 오른쪽 손가락 - 베팅 창 옆 */}
-      <div className="fixed right-4 md:right-8 bottom-[15%] md:bottom-[20%] pointer-events-none z-10">
-        <div className="relative">
-          {/* 동전들 */}
-          <div className="absolute bottom-20">
-            <div className="text-4xl md:text-6xl animate-flick-coin-1">🪙</div>
-          </div>
-          <div className="absolute bottom-20" style={{ animationDelay: '0.3s' }}>
-            <div className="text-3xl md:text-5xl animate-flick-coin-2">🪙</div>
-          </div>
-          <div className="absolute bottom-20" style={{ animationDelay: '0.6s' }}>
-            <div className="text-2xl md:text-4xl animate-flick-coin-3">🪙</div>
+      <div className="fixed right-8 md:right-16 bottom-[15%] md:bottom-[20%] pointer-events-none z-10">
+        <div className="relative w-32 h-40">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-16 animate-flick-coin-shot">
+            <Image
+              src="/coin-tails.png"
+              alt="coin"
+              width={80}
+              height={80}
+              className="w-16 h-16 md:w-20 md:h-20"
+            />
           </div>
           
-          {/* 손가락 (좌우 반전) */}
-          <div className="text-6xl md:text-8xl animate-flick-hand-right scale-x-[-1]">
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 bottom-16 animate-flick-coin-shot"
+            style={{ animationDelay: '0.4s' }}
+          >
+            <Image
+              src="/coin-heads.png"
+              alt="coin"
+              width={80}
+              height={80}
+              className="w-14 h-14 md:w-16 md:h-16"
+            />
+          </div>
+          
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 bottom-16 animate-flick-coin-shot"
+            style={{ animationDelay: '0.8s' }}
+          >
+            <Image
+              src="/coin-tails.png"
+              alt="coin"
+              width={80}
+              height={80}
+              className="w-12 h-12 md:w-14 md:h-14"
+            />
+          </div>
+          
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 text-7xl md:text-8xl animate-flick-finger-up scale-x-[-1]">
             👆
           </div>
         </div>

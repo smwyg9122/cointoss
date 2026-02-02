@@ -82,6 +82,40 @@ module.exports = {
             transform: 'translateY(5px) rotate(-5deg) scaleX(-1)',
           },
         },
+        'flick-finger-up': {
+          '0%, 100%': { 
+            transform: 'translateY(0)',
+            opacity: '0.7'
+          },
+          '40%': { 
+            transform: 'translateY(-30px)',
+            opacity: '1'
+          },
+          '60%': { 
+            transform: 'translateY(-40px)',
+            opacity: '0.8'
+          },
+        },
+        'flick-coin-shot': {
+          '0%': { 
+            transform: 'translateY(0) rotate(0deg) scale(1)',
+            opacity: '0'
+          },
+          '10%': {
+            opacity: '1'
+          },
+          '20%': { 
+            transform: 'translateY(-20px) rotate(180deg) scale(1.1)',
+          },
+          '60%': { 
+            transform: 'translateY(-200px) rotate(720deg) scale(1.3)',
+            opacity: '1'
+          },
+          '100%': {
+            transform: 'translateY(-250px) rotate(900deg) scale(0.8)',
+            opacity: '0'
+          },
+        },
       },
       animation: {
         'coin-flip': 'coin-flip 2s ease-in-out',
@@ -90,6 +124,8 @@ module.exports = {
         'flick-coin-3': 'flick-coin-3 2s ease-out infinite',
         'flick-hand-left': 'flick-hand-left 2s ease-in-out infinite',
         'flick-hand-right': 'flick-hand-right 2s ease-in-out infinite',
+        'flick-finger-up': 'flick-finger-up 2s ease-in-out infinite',
+        'flick-coin-shot': 'flick-coin-shot 2s ease-out infinite',
       },
     },
   },
