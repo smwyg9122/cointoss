@@ -193,7 +193,12 @@ app.post('/api/bet', async (req, res) => {
       
       console.log('✅ Transaction confirmed!', receipt.hash);
       
-      const won = Math.random() < 0.35;
+      // 컨트랙트와 동일한 로직으로 승패 판정
+      // 컨트랙트는 35% 확률로 승리 (choice 무관)
+      const randomSeed = parseInt(receipt.blockNumber.toString() + receipt.transactionIndex.toString());
+      const randomNumber = randomSeed % 100;
+      const won = randomNumber < 35;
+      
       const pnl = won ? amountBN : -amountBN;
       const outcome = choice;
       
