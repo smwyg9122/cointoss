@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 
 interface CoinFlipProps {
   isFlipping: boolean
@@ -17,8 +18,9 @@ export default function CoinFlip({ isFlipping, result, onComplete }: CoinFlipPro
       // 2초 후 결과 표시
       const timer = setTimeout(() => {
         setShowResult(true)
+        // 결과 표시 직후 onComplete 호출
         if (onComplete) {
-          setTimeout(onComplete, 500)
+          setTimeout(onComplete, 100)
         }
       }, 2000)
       return () => clearTimeout(timer)
@@ -30,7 +32,7 @@ export default function CoinFlip({ isFlipping, result, onComplete }: CoinFlipPro
       <div className="relative">
         {/* 동전 */}
         <div
-          className={`w-64 h-64 relative preserve-3d ${
+          className={`w-80 h-80 relative ${
             isFlipping ? 'animate-coin-flip' : ''
           } ${showResult && result === 'tails' ? 'rotate-y-180' : ''}`}
           style={{
@@ -40,34 +42,44 @@ export default function CoinFlip({ isFlipping, result, onComplete }: CoinFlipPro
         >
           {/* 앞면 - HEADS (스마일) */}
           <div
-            className="absolute inset-0 backface-hidden rounded-full shadow-2xl flex items-center justify-center"
+            className="absolute inset-0 rounded-full shadow-2xl flex items-center justify-center overflow-hidden"
             style={{
-              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
-              border: '8px solid #FF6B00',
               backfaceVisibility: 'hidden',
             }}
           >
-            <div className="text-8xl">😊</div>
+            <Image
+              src="/coin-heads.png"
+              alt="Heads"
+              width={320}
+              height={320}
+              className="w-full h-full object-cover"
+              priority
+            />
           </div>
 
           {/* 뒷면 - TAILS (FUNS) */}
           <div
-            className="absolute inset-0 backface-hidden rounded-full shadow-2xl flex items-center justify-center rotate-y-180"
+            className="absolute inset-0 rounded-full shadow-2xl flex items-center justify-center overflow-hidden"
             style={{
-              background: 'linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)',
-              border: '8px solid #2E5C8A',
               backfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
             }}
           >
-            <div className="text-6xl font-bold text-white">FUNS</div>
+            <Image
+              src="/coin-tails.png"
+              alt="Tails"
+              width={320}
+              height={320}
+              className="w-full h-full object-cover"
+              priority
+            />
           </div>
         </div>
 
         {/* 빛나는 효과 */}
         {isFlipping && (
           <div className="absolute inset-0 rounded-full animate-pulse">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 opacity-50 blur-xl"></div>
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-yellow-400 to-orange-500 opacity-50 blur-2xl"></div>
           </div>
         )}
       </div>

@@ -125,12 +125,8 @@ export default function PlayPage() {
         throw new Error(data.error || 'Bet failed')
       }
 
-      // 동전 애니메이션 대기 (2.5초)
-      await new Promise(resolve => setTimeout(resolve, 2500))
-      
+      // 결과 저장 (애니메이션은 CoinFlip 컴포넌트에서 처리)
       setLastResult(data)
-      setIsFlipping(false)
-      setShowResult(true)
       fetchUser()
       fetchGaslessInfo()
       refetchBalance()
@@ -253,7 +249,10 @@ export default function PlayPage() {
         <CoinFlip
           isFlipping={isFlipping}
           result={lastResult?.outcome === 0 ? 'heads' : 'tails'}
-          onComplete={() => {}}
+          onComplete={() => {
+            setIsFlipping(false)
+            setShowResult(true)
+          }}
         />
       )}
 
