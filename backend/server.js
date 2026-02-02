@@ -14,6 +14,8 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
     address TEXT PRIMARY KEY,
     nickname TEXT UNIQUE NOT NULL,
+    gasless_used INTEGER DEFAULT 0,
+    gasless_reset_date TEXT DEFAULT (date('now')),
     created_at INTEGER DEFAULT (strftime('%s', 'now'))
   )`);
   
@@ -80,7 +82,7 @@ app.post('/api/nickname', (req, res) => {
   const trimmedNickname = nickname.trim();
   
   db.run(
-    'INSERT INTO users (address, nickname) VALUES (?, ?)',
+    'INSERT INTO users (address, nickname, gasless_used, gasless_reset_date) VALUES (?, ?, 0, date("now"))',
     [normalizedAddress, trimmedNickname],
     function(err) {
       if (err) {
@@ -138,9 +140,44 @@ app.get('/api/me', (req, res) => {
 });
 
 app.get('/api/gasless/info', async (req, res) => {
-  res.json({
-    remainingFree: 10,
-    maxDaily: 10
+  const { address } = req.query;
+  
+  if (!address || !ethers.isAddress(address)) {
+    return res.status(400).json({ error: 'Valid address required' });
+  }
+  
+  const normalizedAddress = address.toLowerCase();
+  
+  db.get('SELECT * FROM users WHERE address = ?', [normalizedAddress], (err, user) => {
+    if (err || !user) {
+      return res.json({
+        remainingFree: 10,
+        maxDaily: 10
+      });
+    }
+    
+    const today = new Date().toISOString().split('T')[0];
+    const resetDate = user.gasless_reset_date;
+    
+    // 날짜가 바뀌면 리셋
+    if (resetDate !== today) {
+      db.run(
+        'UPDATE users SET gasless_used = 0, gasless_reset_date = ? WHERE address = ?',
+        [today, normalizedAddress],
+        () => {
+          res.json({
+            remainingFree: 10,
+            maxDaily: 10
+          });
+        }
+      );
+    } else {
+      const remaining = Math.max(0, 10 - (user.gasless_used || 0));
+      res.json({
+        remainingFree: remaining,
+        maxDaily: 10
+      });
+    }
   });
 });
 
@@ -160,6 +197,27 @@ app.post('/api/bet', async (req, res) => {
   db.get('SELECT * FROM users WHERE address = ?', [normalizedAddress], async (err, user) => {
     if (err || !user) {
       return res.status(404).json({ error: 'User not found. Please set a nickname first.' });
+    }
+    
+    // Gasless 한도 체크
+    const today = new Date().toISOString().split('T')[0];
+    const resetDate = user.gasless_reset_date;
+    let gaslessUsed = user.gasless_used || 0;
+    
+    if (resetDate !== today) {
+      // 날짜가 바뀌면 리셋
+      gaslessUsed = 0;
+      db.run(
+        'UPDATE users SET gasless_used = 0, gasless_reset_date = ? WHERE address = ?',
+        [today, normalizedAddress]
+      );
+    }
+    
+    if (gaslessUsed >= 10) {
+      return res.status(429).json({ 
+        error: 'Daily gasless limit reached',
+        remainingFree: 0
+      });
     }
     
     try {
@@ -202,6 +260,13 @@ app.post('/api/bet', async (req, res) => {
       const pnl = won ? amountBN : -amountBN;
       const outcome = choice;
       
+      // Gasless 카운터 증가
+      db.run(
+        'UPDATE users SET gasless_used = gasless_used + 1 WHERE address = ?',
+        [normalizedAddress]
+      );
+      
+      // 베팅 기록 저장
       db.run(
         'INSERT INTO bets (address, choice, amount, outcome, won, pnl, nonce) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [normalizedAddress, choice, amountBN.toString(), outcome, won ? 1 : 0, pnl.toString(), nonce.toString()],
@@ -218,7 +283,8 @@ app.post('/api/bet', async (req, res) => {
         outcome,
         amount: amount,
         txHash: receipt.hash,
-        gasless: true
+        gasless: true,
+        remainingFree: 10 - gaslessUsed - 1
       });
       
     } catch (error) {
@@ -265,6 +331,51 @@ app.get('/api/leaderboard', (req, res) => {
       res.json({ leaderboard });
     }
   );
+});
+
+// Admin: 베팅 기록만 초기화 (닉네임 유지)
+app.post('/api/admin/reset-bets', (req, res) => {
+  const { secretKey } = req.body;
+  
+  if (secretKey !== 'RESET_MY_GAME_2026') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  db.run('DELETE FROM bets', (err) => {
+    if (err) {
+      console.error('Reset error:', err);
+      return res.status(500).json({ error: 'Failed to reset bets' });
+    }
+    
+    console.log('✅ All bets have been reset!');
+    res.json({ success: true, message: 'All betting records have been reset' });
+  });
+});
+
+// Admin: 모든 데이터 완전 초기화 (사용자 + 베팅)
+app.post('/api/admin/reset-all', (req, res) => {
+  const { secretKey } = req.body;
+  
+  if (secretKey !== 'RESET_MY_GAME_2026') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  db.run('DELETE FROM bets', (err1) => {
+    if (err1) {
+      console.error('Reset bets error:', err1);
+      return res.status(500).json({ error: 'Failed to reset' });
+    }
+    
+    db.run('DELETE FROM users', (err2) => {
+      if (err2) {
+        console.error('Reset users error:', err2);
+        return res.status(500).json({ error: 'Failed to reset' });
+      }
+      
+      console.log('✅ All data has been reset!');
+      res.json({ success: true, message: 'All data has been reset' });
+    });
+  });
 });
 
 const PORT = process.env.PORT || 3001;
