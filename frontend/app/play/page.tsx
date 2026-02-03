@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt, useDisconnect } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 import { API_BASE_URL, CONTRACTS } from '@/config/wagmi'
@@ -32,6 +32,10 @@ export default function PlayPage() {
   const [gaslessInfo, setGaslessInfo] = useState<any>(null)
   const [isFlipping, setIsFlipping] = useState(false)
 
+  // ✅ 추가: useRef로 항상 최신 값 참조 (closure 버그 수정)
+  const selectedAmountRef = useRef(selectedAmount)
+  const selectedChoiceRef = useRef(selectedChoice)
+
   const { writeContract: approveWrite, data: approveHash } = useWriteContract()
   const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
 
@@ -48,6 +52,15 @@ export default function PlayPage() {
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   })
+
+  // ✅ 추가: state가 바뀌면 ref도 동기화
+  useEffect(() => {
+    selectedAmountRef.current = selectedAmount
+  }, [selectedAmount])
+
+  useEffect(() => {
+    selectedChoiceRef.current = selectedChoice
+  }, [selectedChoice])
 
   useEffect(() => {
     if (address) {
@@ -105,6 +118,10 @@ export default function PlayPage() {
   }
 
   const handleBet = async () => {
+    // ✅ 수정: ref.current에서 최신 값 가져오기
+    const currentAmount = selectedAmountRef.current
+    const currentChoice = selectedChoiceRef.current
+
     setBetting(true)
     setIsFlipping(true)
     
@@ -114,8 +131,8 @@ export default function PlayPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address,
-          amount: selectedAmount,
-          choice: selectedChoice,
+          amount: currentAmount,
+          choice: currentChoice,
         }),
       })
 

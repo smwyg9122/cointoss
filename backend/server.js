@@ -36,6 +36,7 @@ db.serialize(() => {
 
 const CHAIN_ID = parseInt(process.env.CHAIN_ID || '97');
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const FUNS_TOKEN_ADDRESS = process.env.FUNS_TOKEN_ADDRESS;
 const SIGNER_PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY;
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
 const RPC_URL = process.env.RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545';
@@ -65,7 +66,20 @@ const COINTOSS_ABI = [
   },
 ];
 
+// ✅ 추가: ERC20 토큰 ABI (잔액 조회용)
+const ERC20_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+];
+
 const cointossContract = new ethers.Contract(CONTRACT_ADDRESS, COINTOSS_ABI, relayerWallet);
+// ✅ 추가: FUNS 토큰 컨트랙트 (잔액 조회용)
+const funsTokenContract = new ethers.Contract(FUNS_TOKEN_ADDRESS, ERC20_ABI, provider);
 
 app.post('/api/nickname', (req, res) => {
   const { address, nickname } = req.body;
@@ -235,6 +249,10 @@ app.post('/api/bet', async (req, res) => {
       console.log('- Amount:', amount, 'FUNS');
       console.log('- Choice:', choice === 0 ? 'HEADS' : 'TAILS');
       console.log('- Nonce:', nonce);
+
+      // ✅ 베팅 전 잔액 조회
+      const balanceBefore = await funsTokenContract.balanceOf(normalizedAddress);
+      console.log('💰 Balance BEFORE:', ethers.formatEther(balanceBefore), 'FUNS');
       
       const tx = await cointossContract.placeBet(
         normalizedAddress,
@@ -251,12 +269,12 @@ app.post('/api/bet', async (req, res) => {
       
       console.log('✅ Transaction confirmed!', receipt.hash);
       
-      // 컨트랙트와 동일한 로직으로 승패 판정
-      // 컨트랙트는 35% 확률로 승리 (choice 무관)
-      const randomNumber = Math.floor(Math.random() * 100);
-      const won = randomNumber < 35;
-      
-      console.log('🎲 Random:', randomNumber, '→', won ? 'WON' : 'LOST');
+      // ✅ 베팅 후 잔액 조회 → 실제 잔액 변화로 승패 판정
+      const balanceAfter = await funsTokenContract.balanceOf(normalizedAddress);
+      console.log('💰 Balance AFTER:', ethers.formatEther(balanceAfter), 'FUNS');
+
+      const won = balanceAfter > balanceBefore;
+      console.log('🎲 Result:', won ? 'WON ✅' : 'LOST ❌');
       
       const pnl = won ? amountBN : -amountBN;
       const outcome = choice;
@@ -384,4 +402,5 @@ app.listen(PORT, () => {
   console.log(`\n🚀 Server running on http://localhost:${PORT}`);
   console.log(`⛽ Gasless transactions: ENABLED`);
   console.log(`💰 Relayer address: ${relayerWallet.address}`);
+  console.log(`🪙 FUNS Token: ${FUNS_TOKEN_ADDRESS}`);
 });
