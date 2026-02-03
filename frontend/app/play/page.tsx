@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt, useDisconnect } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 import { API_BASE_URL, CONTRACTS } from '@/config/wagmi'
@@ -32,9 +32,10 @@ export default function PlayPage() {
   const [gaslessInfo, setGaslessInfo] = useState<any>(null)
   const [isFlipping, setIsFlipping] = useState(false)
 
-  // ✅ 추가: useRef로 항상 최신 값 참조 (closure 버그 수정)
-  const selectedAmountRef = useRef(selectedAmount)
-  const selectedChoiceRef = useRef(selectedChoice)
+  // ✅ 추가: CoinFlip remount용 카운터
+  const [betCount, setBetCount] = useState(0)
+  // ✅ 추가: 애니메이션 완료 여부 추적
+  const [animationDone, setAnimationDone] = useState(false)
 
   const { writeContract: approveWrite, data: approveHash } = useWriteContract()
   const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
@@ -53,14 +54,13 @@ export default function PlayPage() {
     args: address ? [address] : undefined,
   })
 
-  // ✅ 추가: state가 바뀌면 ref도 동기화
+  // ✅ 핵심: 애니메이션 완료 + fetch 결과 둘 다 준비되면 팝업 표시
   useEffect(() => {
-    selectedAmountRef.current = selectedAmount
-  }, [selectedAmount])
-
-  useEffect(() => {
-    selectedChoiceRef.current = selectedChoice
-  }, [selectedChoice])
+    if (animationDone && lastResult) {
+      setIsFlipping(false)
+      setShowResult(true)
+    }
+  }, [animationDone, lastResult])
 
   useEffect(() => {
     if (address) {
@@ -118,9 +118,16 @@ export default function PlayPage() {
   }
 
   const handleBet = async () => {
-    // ✅ 수정: ref.current에서 최신 값 가져오기
-    const currentAmount = selectedAmountRef.current
-    const currentChoice = selectedChoiceRef.current
+    // ✅ 핵심: 이전 결과 완전히 초기화 (팝업에 이전 결과가 표시되는 버그 수정)
+    setShowResult(false)
+    setLastResult(null)
+    setAnimationDone(false)
+    setBetCount(prev => prev + 1)
+
+    // 현재 선택된 값을 즉시 캡처
+    const currentAmount = selectedAmount
+    const currentChoice = selectedChoice
+    console.log('📤 Sending bet:', { amount: currentAmount, choice: currentChoice })
 
     setBetting(true)
     setIsFlipping(true)
@@ -137,12 +144,15 @@ export default function PlayPage() {
       })
 
       const data = await res.json()
+      console.log('📥 Received result:', data)
 
       if (!res.ok) {
         setIsFlipping(false)
+        setAnimationDone(false)
         throw new Error(data.error || 'Bet failed')
       }
 
+      // ← lastResult 세팅 후, useEffect가 animationDone과 함께 팝업 결정
       setLastResult(data)
       fetchUser()
       fetchGaslessInfo()
@@ -265,11 +275,14 @@ export default function PlayPage() {
         </div>
       </div>
 
+      {/* ✅ key={betCount}: 베팅마다 CoinFlip를 완전히 새로 mount → 애니메이션 반드시 재실행 */}
+      {/* ✅ onComplete: animationDone만 true로 (showResult는 useEffect에서 처리) */}
       {isFlipping && (
         <CoinFlip
+          key={betCount}
           isFlipping={isFlipping}
           result={lastResult?.outcome === 0 ? 'heads' : 'tails'}
-          onComplete={() => { setTimeout(() => { setIsFlipping(false); setShowResult(true) }, 800) }}
+          onComplete={() => setAnimationDone(true)}
         />
       )}
 

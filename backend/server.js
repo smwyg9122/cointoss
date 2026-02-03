@@ -66,7 +66,7 @@ const COINTOSS_ABI = [
   },
 ];
 
-// ✅ 추가: ERC20 토큰 ABI (잔액 조회용)
+// ERC20 토큰 ABI (잔액 조회용)
 const ERC20_ABI = [
   {
     inputs: [{ name: 'account', type: 'address' }],
@@ -78,7 +78,6 @@ const ERC20_ABI = [
 ];
 
 const cointossContract = new ethers.Contract(CONTRACT_ADDRESS, COINTOSS_ABI, relayerWallet);
-// ✅ 추가: FUNS 토큰 컨트랙트 (잔액 조회용)
 const funsTokenContract = new ethers.Contract(FUNS_TOKEN_ADDRESS, ERC20_ABI, provider);
 
 app.post('/api/nickname', (req, res) => {
@@ -173,7 +172,6 @@ app.get('/api/gasless/info', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const resetDate = user.gasless_reset_date;
     
-    // 날짜가 바뀌면 리셋
     if (resetDate !== today) {
       db.run(
         'UPDATE users SET gasless_used = 0, gasless_reset_date = ? WHERE address = ?',
@@ -208,18 +206,18 @@ app.post('/api/bet', async (req, res) => {
   
   const normalizedAddress = address.toLowerCase();
   
+  console.log('📥 Received bet request:', { address: normalizedAddress, amount, choice });
+  
   db.get('SELECT * FROM users WHERE address = ?', [normalizedAddress], async (err, user) => {
     if (err || !user) {
       return res.status(404).json({ error: 'User not found. Please set a nickname first.' });
     }
     
-    // Gasless 한도 체크
     const today = new Date().toISOString().split('T')[0];
     const resetDate = user.gasless_reset_date || today;
     let gaslessUsed = user.gasless_used || 0;
     
     if (resetDate !== today) {
-      // 날짜가 바뀌면 리셋
       gaslessUsed = 0;
       db.run(
         'UPDATE users SET gasless_used = 0, gasless_reset_date = ? WHERE address = ?',
@@ -250,7 +248,7 @@ app.post('/api/bet', async (req, res) => {
       console.log('- Choice:', choice === 0 ? 'HEADS' : 'TAILS');
       console.log('- Nonce:', nonce);
 
-      // ✅ 베팅 전 잔액 조회
+      // 베팅 전 잔액 조회
       const balanceBefore = await funsTokenContract.balanceOf(normalizedAddress);
       console.log('💰 Balance BEFORE:', ethers.formatEther(balanceBefore), 'FUNS');
       
@@ -268,13 +266,18 @@ app.post('/api/bet', async (req, res) => {
       const receipt = await tx.wait();
       
       console.log('✅ Transaction confirmed!', receipt.hash);
-      
-      // ✅ 베팅 후 잔액 조회 → 실제 잔액 변화로 승패 판정
+
+      // ⏳ RPC 캐싱 방지: 블록 확정 후 잔액이 반드시 업데이트될 때까지 대기
+      console.log('⏳ Waiting 3s for RPC to sync...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // 베팅 후 잔액 조회 → 실제 잔액 변화로 승패 판정
       const balanceAfter = await funsTokenContract.balanceOf(normalizedAddress);
       console.log('💰 Balance AFTER:', ethers.formatEther(balanceAfter), 'FUNS');
 
       const won = balanceAfter > balanceBefore;
       console.log('🎲 Result:', won ? 'WON ✅' : 'LOST ❌');
+      console.log('📊 Diff:', ethers.formatEther(balanceAfter - balanceBefore), 'FUNS');
       
       const pnl = won ? amountBN : -amountBN;
       const outcome = choice;
@@ -295,6 +298,8 @@ app.post('/api/bet', async (req, res) => {
           }
         }
       );
+      
+      console.log('📤 Responding: amount=', amount, 'won=', won);
       
       res.json({
         success: true,
