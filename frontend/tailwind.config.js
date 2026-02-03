@@ -83,17 +83,14 @@ module.exports = {
           },
         },
         'flick-finger-up': {
-          '0%, 100%': { 
-            transform: 'translateY(0)',
-            opacity: '0.7'
+          '0%, 35%': { 
+            transform: 'rotate(30deg) scale(1)',
           },
-          '40%': { 
-            transform: 'translateY(-30px)',
-            opacity: '1'
+          '50%': { 
+            transform: 'rotate(-20deg) scale(1.1)',
           },
-          '60%': { 
-            transform: 'translateY(-40px)',
-            opacity: '0.8'
+          '65%, 100%': { 
+            transform: 'rotate(30deg) scale(1)',
           },
         },
         'flick-coin-shot': {
