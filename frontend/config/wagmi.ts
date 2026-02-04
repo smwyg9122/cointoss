@@ -7,7 +7,14 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJ
 export const config = createConfig({
   chains: [bscTestnet, bsc],
   connectors: [
-    injected(),
+    // ✅ OKX Wallet만 감지하도록 target 설정
+    injected({ 
+      target: {
+        id: 'okxWallet',
+        name: 'OKX Wallet',
+        provider: (window) => window?.okxwallet
+      }
+    }),
     walletConnect({ projectId }),
   ],
   transports: {
