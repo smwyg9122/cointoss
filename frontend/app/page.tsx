@@ -67,6 +67,11 @@ export default function Home() {
     }
   }
 
+  // ✅ 1번 수정: 지갑 필터링 - Injected(OKX)와 WalletConnect만 표시
+  const filteredConnectors = connectors.filter(connector => 
+    connector.name === 'Injected' || connector.name === 'WalletConnect'
+  )
+
   if (!mounted) {
     return null
   }
@@ -74,8 +79,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center p-4 sm:p-6">
       <div className="max-w-md w-full">
+        {/* ✅ 2번 수정: 로고를 이미지로 교체 (이모지 대신) */}
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-5xl sm:text-6xl font-bold text-white mb-3 sm:mb-4">🪙</h1>
+          <div className="flex justify-center mb-3 sm:mb-4">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-full flex items-center justify-center shadow-2xl">
+              <span className="text-5xl sm:text-6xl">🪙</span>
+            </div>
+          </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2">Coin Toss</h2>
           <p className="text-base sm:text-lg text-gray-300">Win 2x your bet</p>
         </div>
@@ -86,7 +96,7 @@ export default function Home() {
               Connect Your Wallet
             </h3>
             <div className="space-y-3">
-              {connectors.map((connector) => {
+              {filteredConnectors.map((connector) => {
                 let buttonName = connector.name;
                 
                 if (connector.name === 'Injected') {

@@ -5,8 +5,8 @@ import Image from 'next/image'
 export default function CoinFlickAnimation() {
   return (
     <>
-      {/* 왼쪽 손가락 튕기기 - 모바일에서는 작게, 태블릿 이상에서만 표시 */}
-      <div className="hidden sm:block fixed left-1 md:left-4 bottom-[10%] md:bottom-[15%] pointer-events-none z-10">
+      {/* ✅ 6번 수정: 왼쪽 손가락 → 중앙으로 이동 (left 값 증가) */}
+      <div className="hidden sm:block fixed left-8 md:left-12 lg:left-16 bottom-[10%] md:bottom-[15%] pointer-events-none z-10">
         <div className="relative w-28 h-40 md:w-40 md:h-52">
           {/* 동전 1 */}
           <div className="absolute left-1/2 -translate-x-1/2 bottom-24 md:bottom-32 animate-flick-coin-shot">
@@ -58,8 +58,8 @@ export default function CoinFlickAnimation() {
         </div>
       </div>
 
-      {/* 오른쪽 손가락 튕기기 - 모바일에서는 작게, 태블릿 이상에서만 표시 */}
-      <div className="hidden sm:block fixed right-1 md:right-4 bottom-[10%] md:bottom-[15%] pointer-events-none z-10">
+      {/* ✅ 6번 수정: 오른쪽 손가락 → 중앙으로 이동 (right 값 증가) */}
+      <div className="hidden sm:block fixed right-8 md:right-12 lg:right-16 bottom-[10%] md:bottom-[15%] pointer-events-none z-10">
         <div className="relative w-28 h-40 md:w-40 md:h-52">
           {/* 동전 1 */}
           <div className="absolute left-1/2 -translate-x-1/2 bottom-24 md:bottom-32 animate-flick-coin-shot">

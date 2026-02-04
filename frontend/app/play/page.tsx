@@ -121,7 +121,6 @@ export default function PlayPage() {
 
     const currentAmount = selectedAmount
     const currentChoice = selectedChoice
-    console.log('📤 Sending bet:', { amount: currentAmount, choice: currentChoice })
 
     setBetting(true)
     setIsFlipping(true)
@@ -138,7 +137,6 @@ export default function PlayPage() {
       })
 
       const data = await res.json()
-      console.log('📥 Received result:', data)
 
       if (!res.ok) {
         setIsFlipping(false)
@@ -166,7 +164,6 @@ export default function PlayPage() {
       <CoinFlickAnimation />
       
       <div className="max-w-6xl mx-auto">
-        {/* 헤더 */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-8 gap-3">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">🪙 Coin Toss</h1>
           <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-center">
@@ -187,10 +184,10 @@ export default function PlayPage() {
           </div>
         </div>
 
-        {/* 상단 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-8">
           <BankrollDisplay />
           
+          {/* ✅ 2번 수정: FREE 이모지를 텍스트로 교체 */}
           <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border-2 border-green-500/30">
             <div className="flex items-center justify-between">
               <div>
@@ -200,12 +197,13 @@ export default function PlayPage() {
                   {gaslessInfo?.remainingFree || 0} / {gaslessInfo?.maxDaily || 10} free bets today
                 </p>
               </div>
-              <div className="text-4xl sm:text-5xl">🆓</div>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-500/30 rounded-full flex items-center justify-center border-2 border-green-400">
+                <span className="text-3xl sm:text-4xl font-black text-green-300">0</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 통계 카드 */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-8">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6">
             <h3 className="text-xs sm:text-sm text-gray-300 mb-2">Nickname</h3>
@@ -223,7 +221,6 @@ export default function PlayPage() {
           </div>
         </div>
 
-        {/* 베팅 UI */}
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-8 max-w-2xl mx-auto">
           <div className="mb-4 sm:mb-6">
             <h3 className="text-white text-base sm:text-lg font-semibold mb-2 sm:mb-3">Your Balance</h3>
@@ -259,7 +256,7 @@ export default function PlayPage() {
             </button>
           ) : (
             <button onClick={handleBet} disabled={betting || gaslessInfo?.remainingFree === 0} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold text-lg sm:text-xl py-5 sm:py-6 rounded-xl transition-all transform active:scale-95">
-              {betting ? 'Placing Bet...' : `🆓 Place Bet: ${selectedAmount} FUNS (FREE GAS)`}
+              {betting ? 'Placing Bet...' : `🎁 Place Bet: ${selectedAmount} FUNS (FREE GAS)`}
             </button>
           )}
 
