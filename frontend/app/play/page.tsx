@@ -31,10 +31,7 @@ export default function PlayPage() {
   const [betting, setBetting] = useState(false)
   const [gaslessInfo, setGaslessInfo] = useState<any>(null)
   const [isFlipping, setIsFlipping] = useState(false)
-
-  // ✅ 추가: CoinFlip remount용 카운터
   const [betCount, setBetCount] = useState(0)
-  // ✅ 추가: 애니메이션 완료 여부 추적
   const [animationDone, setAnimationDone] = useState(false)
 
   const { writeContract: approveWrite, data: approveHash } = useWriteContract()
@@ -54,7 +51,6 @@ export default function PlayPage() {
     args: address ? [address] : undefined,
   })
 
-  // ✅ 핵심: 애니메이션 완료 + fetch 결과 둘 다 준비되면 팝업 표시
   useEffect(() => {
     if (animationDone && lastResult) {
       setIsFlipping(false)
@@ -118,13 +114,11 @@ export default function PlayPage() {
   }
 
   const handleBet = async () => {
-    // ✅ 핵심: 이전 결과 완전히 초기화 (팝업에 이전 결과가 표시되는 버그 수정)
     setShowResult(false)
     setLastResult(null)
     setAnimationDone(false)
     setBetCount(prev => prev + 1)
 
-    // 현재 선택된 값을 즉시 캡처
     const currentAmount = selectedAmount
     const currentChoice = selectedChoice
     console.log('📤 Sending bet:', { amount: currentAmount, choice: currentChoice })
@@ -152,7 +146,6 @@ export default function PlayPage() {
         throw new Error(data.error || 'Bet failed')
       }
 
-      // ← lastResult 세팅 후, useEffect가 animationDone과 함께 팝업 결정
       setLastResult(data)
       fetchUser()
       fetchGaslessInfo()
@@ -169,100 +162,103 @@ export default function PlayPage() {
   const needsApproval = !allowance || allowance < parseEther(selectedAmount.toString())
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black p-4">
-      {/* 동전 튕기기 애니메이션 */}
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black p-3 sm:p-4">
       <CoinFlickAnimation />
       
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-white">🪙 Coin Toss</h1>
-          <div className="flex gap-4 items-center">
+        {/* 헤더 */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-8 gap-3">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">🪙 Coin Toss</h1>
+          <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-center">
             {address && (
-              <div className="text-white font-mono text-sm bg-white/10 px-4 py-2 rounded-lg">
+              <div className="text-white font-mono text-xs sm:text-sm bg-white/10 px-3 sm:px-4 py-2 rounded-lg">
                 {address.slice(0, 6)}...{address.slice(-4)}
               </div>
             )}
-            <Link href="/leaderboard" className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-6 rounded-xl transition-all">
+            <Link href="/leaderboard" className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 sm:px-6 rounded-xl transition-all text-sm sm:text-base whitespace-nowrap">
               🏆 Leaderboard
             </Link>
             <button
               onClick={() => disconnect()}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-xl transition-all"
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 sm:px-6 rounded-xl transition-all text-sm sm:text-base whitespace-nowrap"
             >
               Disconnect
             </button>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        {/* 상단 카드 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-8">
           <BankrollDisplay />
           
-          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-6 border-2 border-green-500/30">
+          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border-2 border-green-500/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-300 mb-1">⛽ Gas Fee Status</p>
-                <p className="text-3xl font-bold text-green-400">FREE! 🎁</p>
+                <p className="text-xs sm:text-sm text-gray-300 mb-1">⛽ Gas Fee Status</p>
+                <p className="text-2xl sm:text-3xl font-bold text-green-400">FREE! 🎁</p>
                 <p className="text-xs text-gray-400 mt-1">
                   {gaslessInfo?.remainingFree || 0} / {gaslessInfo?.maxDaily || 10} free bets today
                 </p>
               </div>
-              <div className="text-5xl">🆓</div>
+              <div className="text-4xl sm:text-5xl">🆓</div>
             </div>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
-            <h3 className="text-sm text-gray-300 mb-2">Nickname</h3>
-            <p className="text-2xl font-bold text-white">{user?.nickname || '---'}</p>
+        {/* 통계 카드 */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-8">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6">
+            <h3 className="text-xs sm:text-sm text-gray-300 mb-2">Nickname</h3>
+            <p className="text-lg sm:text-2xl font-bold text-white truncate">{user?.nickname || '---'}</p>
           </div>
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
-            <h3 className="text-sm text-gray-300 mb-2">Total Plays</h3>
-            <p className="text-2xl font-bold text-white">{user?.plays || 0}</p>
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6">
+            <h3 className="text-xs sm:text-sm text-gray-300 mb-2">Total Plays</h3>
+            <p className="text-lg sm:text-2xl font-bold text-white">{user?.plays || 0}</p>
           </div>
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
-            <h3 className="text-sm text-gray-300 mb-2">Total PnL</h3>
-            <p className={`text-2xl font-bold ${parseFloat(user?.pnl || '0') >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-6 col-span-2 md:col-span-1">
+            <h3 className="text-xs sm:text-sm text-gray-300 mb-2">Total PnL</h3>
+            <p className={`text-lg sm:text-2xl font-bold ${parseFloat(user?.pnl || '0') >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {user?.pnl ? (parseFloat(formatEther(BigInt(user.pnl))) >= 0 ? '+' : '') + parseFloat(formatEther(BigInt(user.pnl))).toFixed(2) : '0'} FUNS
             </p>
           </div>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-2xl mx-auto">
-          <div className="mb-6">
-            <h3 className="text-white text-lg font-semibold mb-3">Your Balance</h3>
-            <p className="text-3xl font-bold text-white">{balance ? parseFloat(formatEther(balance)).toFixed(2) : '0'} FUNS</p>
+        {/* 베팅 UI */}
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-8 max-w-2xl mx-auto">
+          <div className="mb-4 sm:mb-6">
+            <h3 className="text-white text-base sm:text-lg font-semibold mb-2 sm:mb-3">Your Balance</h3>
+            <p className="text-2xl sm:text-3xl font-bold text-white">{balance ? parseFloat(formatEther(balance)).toFixed(2) : '0'} FUNS</p>
           </div>
 
-          <div className="mb-6">
-            <h3 className="text-white text-lg font-semibold mb-3">Select Bet Amount</h3>
-            <div className="grid grid-cols-5 gap-3">
+          <div className="mb-4 sm:mb-6">
+            <h3 className="text-white text-base sm:text-lg font-semibold mb-2 sm:mb-3">Select Bet Amount</h3>
+            <div className="grid grid-cols-5 gap-2 sm:gap-3">
               {BET_AMOUNTS.map((amount) => (
-                <button key={amount} onClick={() => setSelectedAmount(amount)} className={`py-4 px-4 rounded-xl font-bold transition-all ${selectedAmount === amount ? 'bg-purple-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                <button key={amount} onClick={() => setSelectedAmount(amount)} className={`py-3 sm:py-4 px-2 sm:px-4 rounded-xl font-bold transition-all text-sm sm:text-base ${selectedAmount === amount ? 'bg-purple-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30 active:scale-95'}`}>
                   {amount}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="mb-8">
-            <h3 className="text-white text-lg font-semibold mb-3">Choose Side</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setSelectedChoice(0)} className={`py-8 rounded-xl font-bold text-2xl transition-all ${selectedChoice === 0 ? 'bg-blue-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+          <div className="mb-6 sm:mb-8">
+            <h3 className="text-white text-base sm:text-lg font-semibold mb-2 sm:mb-3">Choose Side</h3>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <button onClick={() => setSelectedChoice(0)} className={`py-6 sm:py-8 rounded-xl font-bold text-xl sm:text-2xl transition-all ${selectedChoice === 0 ? 'bg-blue-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30 active:scale-95'}`}>
                 👑 HEADS
               </button>
-              <button onClick={() => setSelectedChoice(1)} className={`py-8 rounded-xl font-bold text-2xl transition-all ${selectedChoice === 1 ? 'bg-green-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+              <button onClick={() => setSelectedChoice(1)} className={`py-6 sm:py-8 rounded-xl font-bold text-xl sm:text-2xl transition-all ${selectedChoice === 1 ? 'bg-green-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30 active:scale-95'}`}>
                 🦅 TAILS
               </button>
             </div>
           </div>
 
           {needsApproval ? (
-            <button onClick={handleApprove} disabled={approving} className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white font-bold text-xl py-6 rounded-xl transition-all">
+            <button onClick={handleApprove} disabled={approving} className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white font-bold text-lg sm:text-xl py-5 sm:py-6 rounded-xl transition-all active:scale-95">
               {approving ? 'Approving...' : 'Approve FUNS'}
             </button>
           ) : (
-            <button onClick={handleBet} disabled={betting || gaslessInfo?.remainingFree === 0} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold text-xl py-6 rounded-xl transition-all transform hover:scale-105">
+            <button onClick={handleBet} disabled={betting || gaslessInfo?.remainingFree === 0} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold text-lg sm:text-xl py-5 sm:py-6 rounded-xl transition-all transform active:scale-95">
               {betting ? 'Placing Bet...' : `🆓 Place Bet: ${selectedAmount} FUNS (FREE GAS)`}
             </button>
           )}
@@ -275,8 +271,6 @@ export default function PlayPage() {
         </div>
       </div>
 
-      {/* ✅ key={betCount}: 베팅마다 CoinFlip를 완전히 새로 mount → 애니메이션 반드시 재실행 */}
-      {/* ✅ onComplete: animationDone만 true로 (showResult는 useEffect에서 처리) */}
       {isFlipping && (
         <CoinFlip
           key={betCount}
@@ -288,16 +282,16 @@ export default function PlayPage() {
 
       {showResult && lastResult && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className={`rounded-3xl p-8 max-w-md w-full shadow-2xl ${lastResult.won ? 'bg-gradient-to-br from-green-600 to-emerald-600' : 'bg-gradient-to-br from-red-600 to-pink-600'}`}>
+          <div className={`rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl ${lastResult.won ? 'bg-gradient-to-br from-green-600 to-emerald-600' : 'bg-gradient-to-br from-red-600 to-pink-600'}`}>
             <div className="text-center">
-              <div className="text-8xl mb-4">{lastResult.won ? '🎉' : '😢'}</div>
-              <h2 className="text-4xl font-bold text-white mb-4">{lastResult.won ? 'YOU WON!' : 'YOU LOST'}</h2>
-              <div className="text-6xl mb-4">{lastResult.outcome === 0 ? '👑' : '🦅'}</div>
-              <p className="text-2xl text-white mb-4">{lastResult.won ? `+${lastResult.amount} FUNS` : `-${lastResult.amount} FUNS`}</p>
+              <div className="text-6xl sm:text-8xl mb-4">{lastResult.won ? '🎉' : '😢'}</div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{lastResult.won ? 'YOU WON!' : 'YOU LOST'}</h2>
+              <div className="text-5xl sm:text-6xl mb-4">{lastResult.outcome === 0 ? '👑' : '🦅'}</div>
+              <p className="text-xl sm:text-2xl text-white mb-4">{lastResult.won ? `+${lastResult.amount} FUNS` : `-${lastResult.amount} FUNS`}</p>
               {lastResult.gasless && (
-                <p className="text-lg text-white/80 mb-4">⛽ Gas fee: FREE 🎁</p>
+                <p className="text-base sm:text-lg text-white/80 mb-4">⛽ Gas fee: FREE 🎁</p>
               )}
-              <button onClick={() => setShowResult(false)} className="bg-white text-gray-900 font-bold py-3 px-8 rounded-xl hover:bg-gray-100 transition-all">
+              <button onClick={() => setShowResult(false)} className="bg-white text-gray-900 font-bold py-3 px-8 rounded-xl hover:bg-gray-100 transition-all active:scale-95">
                 Play Again
               </button>
             </div>

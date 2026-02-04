@@ -1,152 +1,306 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt, useDisconnect } from 'wagmi'
+import { parseEther, formatEther } from 'viem'
+import { API_BASE_URL, CONTRACTS } from '@/config/wagmi'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { API_BASE_URL } from '@/config/wagmi'
+import BankrollDisplay from '@/components/BankrollDisplay'
+import CoinFlip from '@/components/CoinFlip'
+import CoinFlickAnimation from '@/components/CoinFlickAnimation'
 
-export default function Home() {
+const BET_AMOUNTS = [1, 2, 4, 8, 16]
+
+const ERC20_ABI = [
+  { inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], name: 'approve', outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], name: 'allowance', outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [{ name: 'account', type: 'address' }], name: 'balanceOf', outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' },
+] as const
+
+export default function PlayPage() {
   const { address, isConnected } = useAccount()
-  const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
   const router = useRouter()
-  const [showNicknameModal, setShowNicknameModal] = useState(false)
-  const [nickname, setNickname] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [mounted, setMounted] = useState(false)
+  const [selectedAmount, setSelectedAmount] = useState(1)
+  const [selectedChoice, setSelectedChoice] = useState<0 | 1>(0)
+  const [user, setUser] = useState<any>(null)
+  const [showResult, setShowResult] = useState(false)
+  const [lastResult, setLastResult] = useState<any>(null)
+  const [approving, setApproving] = useState(false)
+  const [betting, setBetting] = useState(false)
+  const [gaslessInfo, setGaslessInfo] = useState<any>(null)
+  const [isFlipping, setIsFlipping] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  // ✅ 추가: CoinFlip remount용 카운터
+  const [betCount, setBetCount] = useState(0)
+  // ✅ 추가: 애니메이션 완료 여부 추적
+  const [animationDone, setAnimationDone] = useState(false)
 
+  const { writeContract: approveWrite, data: approveHash } = useWriteContract()
+  const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
+
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: CONTRACTS.FUNS_TOKEN,
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: address ? [address, CONTRACTS.COINTOSS] : undefined,
+  })
+
+  const { data: balance, refetch: refetchBalance } = useReadContract({
+    address: CONTRACTS.FUNS_TOKEN,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+  })
+
+  // ✅ 핵심: 애니메이션 완료 + fetch 결과 둘 다 준비되면 팝업 표시
   useEffect(() => {
-    if (isConnected && address && mounted) {
-      checkUser()
+    if (animationDone && lastResult) {
+      setIsFlipping(false)
+      setShowResult(true)
     }
-  }, [isConnected, address, mounted])
+  }, [animationDone, lastResult])
 
-  const checkUser = async () => {
+  useEffect(() => {
+    if (address) {
+      fetchUser()
+      fetchGaslessInfo()
+    }
+  }, [address])
+
+  useEffect(() => {
+    if (approveSuccess) {
+      refetchAllowance()
+      setApproving(false)
+    }
+  }, [approveSuccess])
+
+  useEffect(() => {
+    if (!isConnected) {
+      router.push('/')
+    }
+  }, [isConnected, router])
+
+  const fetchUser = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/me?address=${address}`)
       const data = await res.json()
-      
-      if (data.exists) {
-        router.push('/play')
-      } else {
-        setShowNicknameModal(true)
-      }
+      setUser(data)
     } catch (err) {
-      console.error('Error checking user:', err)
+      console.error('Error fetching user:', err)
     }
   }
 
-  const handleCreateNickname = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-
+  const fetchGaslessInfo = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/nickname`, {
+      const res = await fetch(`${API_BASE_URL}/api/gasless/info?address=${address}`)
+      const data = await res.json()
+      setGaslessInfo(data)
+    } catch (err) {
+      console.error('Error fetching gasless info:', err)
+    }
+  }
+
+  const handleApprove = async () => {
+    setApproving(true)
+    try {
+      approveWrite({
+        address: CONTRACTS.FUNS_TOKEN,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [CONTRACTS.COINTOSS, parseEther('1000000')],
+      })
+    } catch (err) {
+      console.error('Approve error:', err)
+      setApproving(false)
+    }
+  }
+
+  const handleBet = async () => {
+    // ✅ 핵심: 이전 결과 완전히 초기화 (팝업에 이전 결과가 표시되는 버그 수정)
+    setShowResult(false)
+    setLastResult(null)
+    setAnimationDone(false)
+    setBetCount(prev => prev + 1)
+
+    // 현재 선택된 값을 즉시 캡처
+    const currentAmount = selectedAmount
+    const currentChoice = selectedChoice
+    console.log('📤 Sending bet:', { amount: currentAmount, choice: currentChoice })
+
+    setBetting(true)
+    setIsFlipping(true)
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, nickname }),
+        body: JSON.stringify({
+          address,
+          amount: currentAmount,
+          choice: currentChoice,
+        }),
       })
 
       const data = await res.json()
+      console.log('📥 Received result:', data)
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create nickname')
+        setIsFlipping(false)
+        setAnimationDone(false)
+        throw new Error(data.error || 'Bet failed')
       }
 
-      router.push('/play')
+      // ← lastResult 세팅 후, useEffect가 animationDone과 함께 팝업 결정
+      setLastResult(data)
+      fetchUser()
+      fetchGaslessInfo()
+      refetchBalance()
     } catch (err: any) {
-      setError(err.message)
+      console.error('Bet error:', err)
+      setIsFlipping(false)
+      alert(err.message)
     } finally {
-      setLoading(false)
+      setBetting(false)
     }
   }
 
-  if (!mounted) {
-    return null
-  }
+  const needsApproval = !allowance || allowance < parseEther(selectedAmount.toString())
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-6xl font-bold text-white mb-4">🪙</h1>
-          <h2 className="text-4xl font-bold text-white mb-2">Coin Toss</h2>
-          <p className="text-gray-300">Win 2x your bet</p>
-        </div>
-
-        {!isConnected ? (
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
-            <h3 className="text-xl font-semibold text-white mb-6 text-center">
-              Connect Your Wallet
-            </h3>
-            <div className="space-y-3">
-              {connectors.map((connector) => {
-                let buttonName = connector.name;
-                
-                if (connector.name === 'Injected') {
-                  buttonName = 'OKX Wallet';
-                } else if (connector.name === 'WalletConnect') {
-                  buttonName = 'WalletConnect (토큰포켓)';
-                }
-                
-                return (
-                  <button
-                    key={connector.id}
-                    onClick={() => connect({ connector })}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform hover:scale-105"
-                  >
-                    {buttonName}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
-            <p className="text-sm text-gray-300 mb-4">Connected:</p>
-            <p className="text-white font-mono text-sm mb-6 break-all">{address}</p>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black p-4">
+      {/* 동전 튕기기 애니메이션 */}
+      <CoinFlickAnimation />
+      
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-white">🪙 Coin Toss</h1>
+          <div className="flex gap-4 items-center">
+            {address && (
+              <div className="text-white font-mono text-sm bg-white/10 px-4 py-2 rounded-lg">
+                {address.slice(0, 6)}...{address.slice(-4)}
+              </div>
+            )}
+            <Link href="/leaderboard" className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-6 rounded-xl transition-all">
+              🏆 Leaderboard
+            </Link>
             <button
               onClick={() => disconnect()}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-xl transition-all"
             >
               Disconnect
             </button>
           </div>
-        )}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <BankrollDisplay />
+          
+          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-6 border-2 border-green-500/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-300 mb-1">⛽ Gas Fee Status</p>
+                <p className="text-3xl font-bold text-green-400">FREE! 🎁</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {gaslessInfo?.remainingFree || 0} / {gaslessInfo?.maxDaily || 10} free bets today
+                </p>
+              </div>
+              <div className="text-5xl">🆓</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
+            <h3 className="text-sm text-gray-300 mb-2">Nickname</h3>
+            <p className="text-2xl font-bold text-white">{user?.nickname || '---'}</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
+            <h3 className="text-sm text-gray-300 mb-2">Total Plays</h3>
+            <p className="text-2xl font-bold text-white">{user?.plays || 0}</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
+            <h3 className="text-sm text-gray-300 mb-2">Total PnL</h3>
+            <p className={`text-2xl font-bold ${parseFloat(user?.pnl || '0') >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {user?.pnl ? (parseFloat(formatEther(BigInt(user.pnl))) >= 0 ? '+' : '') + parseFloat(formatEther(BigInt(user.pnl))).toFixed(2) : '0'} FUNS
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 max-w-2xl mx-auto">
+          <div className="mb-6">
+            <h3 className="text-white text-lg font-semibold mb-3">Your Balance</h3>
+            <p className="text-3xl font-bold text-white">{balance ? parseFloat(formatEther(balance)).toFixed(2) : '0'} FUNS</p>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-white text-lg font-semibold mb-3">Select Bet Amount</h3>
+            <div className="grid grid-cols-5 gap-3">
+              {BET_AMOUNTS.map((amount) => (
+                <button key={amount} onClick={() => setSelectedAmount(amount)} className={`py-4 px-4 rounded-xl font-bold transition-all ${selectedAmount === amount ? 'bg-purple-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                  {amount}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-white text-lg font-semibold mb-3">Choose Side</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => setSelectedChoice(0)} className={`py-8 rounded-xl font-bold text-2xl transition-all ${selectedChoice === 0 ? 'bg-blue-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                👑 HEADS
+              </button>
+              <button onClick={() => setSelectedChoice(1)} className={`py-8 rounded-xl font-bold text-2xl transition-all ${selectedChoice === 1 ? 'bg-green-600 text-white scale-105' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                🦅 TAILS
+              </button>
+            </div>
+          </div>
+
+          {needsApproval ? (
+            <button onClick={handleApprove} disabled={approving} className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white font-bold text-xl py-6 rounded-xl transition-all">
+              {approving ? 'Approving...' : 'Approve FUNS'}
+            </button>
+          ) : (
+            <button onClick={handleBet} disabled={betting || gaslessInfo?.remainingFree === 0} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold text-xl py-6 rounded-xl transition-all transform hover:scale-105">
+              {betting ? 'Placing Bet...' : `🆓 Place Bet: ${selectedAmount} FUNS (FREE GAS)`}
+            </button>
+          )}
+
+          {gaslessInfo?.remainingFree === 0 && (
+            <p className="text-center text-yellow-400 text-sm mt-4">
+              ⚠️ Daily free gas limit reached. Come back tomorrow!
+            </p>
+          )}
+        </div>
       </div>
 
-      {showNicknameModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gradient-to-br from-purple-900 to-blue-900 rounded-2xl p-8 max-w-md w-full shadow-2xl">
-            <h3 className="text-2xl font-bold text-white mb-4">Choose Your Nickname</h3>
-            <form onSubmit={handleCreateNickname}>
-              <input
-                type="text"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                placeholder="Enter nickname (3-20 chars)"
-                className="w-full bg-white/20 border-2 border-white/30 rounded-xl px-4 py-3 text-white placeholder-gray-400 mb-4 focus:outline-none focus:border-purple-400"
-                minLength={3}
-                maxLength={20}
-                required
-              />
-              {error && (
-                <p className="text-red-400 text-sm mb-4">{error}</p>
+      {/* ✅ key={betCount}: 베팅마다 CoinFlip를 완전히 새로 mount → 애니메이션 반드시 재실행 */}
+      {/* ✅ onComplete: animationDone만 true로 (showResult는 useEffect에서 처리) */}
+      {isFlipping && (
+        <CoinFlip
+          key={betCount}
+          isFlipping={isFlipping}
+          result={lastResult?.outcome === 0 ? 'heads' : 'tails'}
+          onComplete={() => setAnimationDone(true)}
+        />
+      )}
+
+      {showResult && lastResult && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className={`rounded-3xl p-8 max-w-md w-full shadow-2xl ${lastResult.won ? 'bg-gradient-to-br from-green-600 to-emerald-600' : 'bg-gradient-to-br from-red-600 to-pink-600'}`}>
+            <div className="text-center">
+              <div className="text-8xl mb-4">{lastResult.won ? '🎉' : '😢'}</div>
+              <h2 className="text-4xl font-bold text-white mb-4">{lastResult.won ? 'YOU WON!' : 'YOU LOST'}</h2>
+              <div className="text-6xl mb-4">{lastResult.outcome === 0 ? '👑' : '🦅'}</div>
+              <p className="text-2xl text-white mb-4">{lastResult.won ? `+${lastResult.amount} FUNS` : `-${lastResult.amount} FUNS`}</p>
+              {lastResult.gasless && (
+                <p className="text-lg text-white/80 mb-4">⛽ Gas fee: FREE 🎁</p>
               )}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
-              >
-                {loading ? 'Creating...' : 'Create Nickname'}
+              <button onClick={() => setShowResult(false)} className="bg-white text-gray-900 font-bold py-3 px-8 rounded-xl hover:bg-gray-100 transition-all">
+                Play Again
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
