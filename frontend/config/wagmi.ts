@@ -1,22 +1,14 @@
 import { http, createConfig } from 'wagmi'
 import { bscTestnet, bsc } from 'wagmi/chains'
-import { injected, walletConnect } from 'wagmi/connectors'
-
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID'
+import { injected } from 'wagmi/connectors'
 
 export const config = createConfig({
   chains: [bscTestnet, bsc],
   connectors: [
-    // ✅ 타입 에러 수정: @ts-ignore 추가
+    // OKX Wallet만 사용
     injected({ 
-      target: {
-        id: 'okxWallet',
-        name: 'OKX Wallet',
-        // @ts-ignore - OKX Wallet extension type
-        provider: (window) => window?.okxwallet
-      }
+      target: 'okxWallet'
     }),
-    walletConnect({ projectId }),
   ],
   transports: {
     [bscTestnet.id]: http(),

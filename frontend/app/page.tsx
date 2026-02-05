@@ -67,26 +67,27 @@ export default function Home() {
     }
   }
 
-  // ✅ 2번 수정: OKX Wallet 직접 연결 함수
-  const handleOKXConnect = () => {
+  // OKX Wallet 연결
+  const handleOKXConnect = async () => {
     // @ts-ignore
     const hasOKX = typeof window !== 'undefined' && window.okxwallet
     
     if (!hasOKX) {
-      alert('Please install OKX Wallet extension first!\n\nDownload: https://www.okx.com/web3')
+      alert('OKX Wallet 확장 프로그램을 먼저 설치해주세요!\n\n다운로드: https://www.okx.com/web3')
       window.open('https://www.okx.com/web3', '_blank')
       return
     }
 
-    // OKX Wallet이 있으면 injected connector 사용
-    const injectedConnector = connectors.find(c => c.id === 'injected' || c.name === 'Injected')
-    if (injectedConnector) {
-      connect({ connector: injectedConnector })
+    // OKX Wallet connector 찾기
+    const okxConnector = connectors.find(c => c.id === 'injected')
+    if (okxConnector) {
+      try {
+        await connect({ connector: okxConnector })
+      } catch (err) {
+        console.error('Connection error:', err)
+      }
     }
   }
-
-  // WalletConnect connector만 찾기
-  const walletConnectConnector = connectors.find(c => c.id === 'walletConnect')
 
   if (!mounted) {
     return null
@@ -95,7 +96,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center p-4 sm:p-6">
       <div className="max-w-md w-full">
-        {/* ✅ 3번 수정: 로고를 SVG로 완전히 교체 (이모지 제거) */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex justify-center mb-3 sm:mb-4">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-2xl bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600">
@@ -112,37 +112,31 @@ export default function Home() {
         {!isConnected ? (
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 sm:p-8 shadow-2xl">
             <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 text-center">
-              Connect Your Wallet
+              지갑 연결
             </h3>
             <div className="space-y-3">
-              {/* ✅ 2번 수정: OKX Wallet 직접 연결 */}
+              {/* OKX Wallet만 표시 */}
               <button
                 onClick={handleOKXConnect}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg shadow-lg hover:shadow-xl"
               >
-                OKX Wallet
+                🦊 OKX Wallet으로 연결
               </button>
               
-              {/* WalletConnect */}
-              {walletConnectConnector && (
-                <button
-                  onClick={() => connect({ connector: walletConnectConnector })}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg"
-                >
-                  WalletConnect (토큰포켓)
-                </button>
-              )}
+              <p className="text-xs text-gray-400 text-center mt-3">
+                OKX Wallet이 설치되어 있지 않다면 위 버튼을 클릭하세요
+              </p>
             </div>
           </div>
         ) : (
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 sm:p-8 shadow-2xl">
-            <p className="text-sm text-gray-300 mb-3 sm:mb-4">Connected:</p>
+            <p className="text-sm text-gray-300 mb-3 sm:mb-4">연결됨:</p>
             <p className="text-white font-mono text-xs sm:text-sm mb-5 sm:mb-6 break-all">{address}</p>
             <button
               onClick={() => disconnect()}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 sm:py-4 px-6 rounded-xl transition-all active:scale-95 text-base"
             >
-              Disconnect
+              연결 해제
             </button>
           </div>
         )}
@@ -151,13 +145,13 @@ export default function Home() {
       {showNicknameModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-gradient-to-br from-purple-900 to-blue-900 rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl sm:text-2xl font-bold text-white mb-4">Choose Your Nickname</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-white mb-4">닉네임 설정</h3>
             <form onSubmit={handleCreateNickname}>
               <input
                 type="text"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                placeholder="Enter nickname (3-20 chars)"
+                placeholder="닉네임 입력 (3-20자)"
                 className="w-full bg-white/20 border-2 border-white/30 rounded-xl px-4 py-3 text-white placeholder-gray-400 mb-4 focus:outline-none focus:border-purple-400 text-base"
                 minLength={3}
                 maxLength={20}
@@ -171,7 +165,7 @@ export default function Home() {
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 sm:py-4 px-6 rounded-xl transition-all active:scale-95 text-base"
               >
-                {loading ? 'Creating...' : 'Create Nickname'}
+                {loading ? '생성 중...' : '닉네임 생성'}
               </button>
             </form>
           </div>
