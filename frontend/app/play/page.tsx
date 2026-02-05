@@ -52,10 +52,15 @@ export default function PlayPage() {
     args: address ? [address] : undefined,
   })
 
+  // ✅ 애니메이션 완료 후 1초 대기 후 결과 표시
   useEffect(() => {
     if (animationDone && lastResult) {
       setIsFlipping(false)
-      setShowResult(true)
+      // 🎯 1초 대기 후 결과 팝업
+      const timer = setTimeout(() => {
+        setShowResult(true)
+      }, 1000)
+      return () => clearTimeout(timer)
     }
   }, [animationDone, lastResult])
 
@@ -188,7 +193,6 @@ export default function PlayPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-8">
           <BankrollDisplay />
           
-          {/* ✅ 3번 수정: FREE 이모지 대신 텍스트 배지 */}
           <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border-2 border-green-500/30">
             <div className="flex items-center justify-between">
               <div>
@@ -278,7 +282,6 @@ export default function PlayPage() {
         />
       )}
 
-      {/* ✅ 1번 수정: 결과 팝업에 동전 이미지 추가 */}
       {showResult && lastResult && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className={`rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl ${lastResult.won ? 'bg-gradient-to-br from-green-600 to-emerald-600' : 'bg-gradient-to-br from-red-600 to-pink-600'}`}>
@@ -286,7 +289,6 @@ export default function PlayPage() {
               <div className="text-6xl sm:text-8xl mb-4">{lastResult.won ? '🎉' : '😢'}</div>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{lastResult.won ? 'YOU WON!' : 'YOU LOST'}</h2>
               
-              {/* ✅ 동전 이미지 추가 */}
               <div className="flex justify-center mb-4">
                 <div className="w-32 h-32 sm:w-40 sm:h-40 relative">
                   <Image

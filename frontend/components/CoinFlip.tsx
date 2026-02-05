@@ -15,13 +15,13 @@ export default function CoinFlip({ isFlipping, result, onComplete }: CoinFlipPro
   useEffect(() => {
     if (isFlipping) {
       setShowResult(false)
-      // ✅ 2초 → 5초로 변경
+      // ✅ 6초 회전
       const timer = setTimeout(() => {
         setShowResult(true)
         if (onComplete) {
           setTimeout(onComplete, 0)
         }
-      }, 5000) // 🎯 5초
+      }, 6000) // 🎯 6초 회전
 
       return () => clearTimeout(timer)
     }

@@ -115,7 +115,7 @@ module.exports = {
         },
       },
       animation: {
-        'coin-flip': 'coin-flip 5s ease-in-out', // ✅ 2s → 5s 변경
+        'coin-flip': 'coin-flip 6s ease-in-out', // ✅ 6초 회전
         'flick-coin-1': 'flick-coin-1 2s ease-out infinite',
         'flick-coin-2': 'flick-coin-2 2s ease-out infinite',
         'flick-coin-3': 'flick-coin-3 2s ease-out infinite',
