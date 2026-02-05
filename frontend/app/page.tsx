@@ -67,18 +67,18 @@ export default function Home() {
     }
   }
 
-  // OKX Wallet 연결
+  // OKX Wallet connection
   const handleOKXConnect = async () => {
     // @ts-ignore
     const hasOKX = typeof window !== 'undefined' && window.okxwallet
     
     if (!hasOKX) {
-      alert('OKX Wallet 확장 프로그램을 먼저 설치해주세요!\n\n다운로드: https://www.okx.com/web3')
+      alert('Please install OKX Wallet extension first!\n\nDownload: https://www.okx.com/web3')
       window.open('https://www.okx.com/web3', '_blank')
       return
     }
 
-    // OKX Wallet connector 찾기
+    // Find OKX Wallet connector
     const okxConnector = connectors.find(c => c.id === 'injected')
     if (okxConnector) {
       try {
@@ -112,31 +112,31 @@ export default function Home() {
         {!isConnected ? (
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 sm:p-8 shadow-2xl">
             <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 text-center">
-              지갑 연결
+              Connect Your Wallet
             </h3>
             <div className="space-y-3">
-              {/* OKX Wallet만 표시 */}
+              {/* OKX Wallet only */}
               <button
                 onClick={handleOKXConnect}
                 className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg shadow-lg hover:shadow-xl"
               >
-                🦊 OKX Wallet으로 연결
+                🦊 Connect with OKX Wallet
               </button>
               
               <p className="text-xs text-gray-400 text-center mt-3">
-                OKX Wallet이 설치되어 있지 않다면 위 버튼을 클릭하세요
+                Don't have OKX Wallet? Click the button above to install
               </p>
             </div>
           </div>
         ) : (
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 sm:p-8 shadow-2xl">
-            <p className="text-sm text-gray-300 mb-3 sm:mb-4">연결됨:</p>
+            <p className="text-sm text-gray-300 mb-3 sm:mb-4">Connected:</p>
             <p className="text-white font-mono text-xs sm:text-sm mb-5 sm:mb-6 break-all">{address}</p>
             <button
               onClick={() => disconnect()}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 sm:py-4 px-6 rounded-xl transition-all active:scale-95 text-base"
             >
-              연결 해제
+              Disconnect
             </button>
           </div>
         )}
@@ -145,13 +145,13 @@ export default function Home() {
       {showNicknameModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-gradient-to-br from-purple-900 to-blue-900 rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl sm:text-2xl font-bold text-white mb-4">닉네임 설정</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-white mb-4">Choose Your Nickname</h3>
             <form onSubmit={handleCreateNickname}>
               <input
                 type="text"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                placeholder="닉네임 입력 (3-20자)"
+                placeholder="Enter nickname (3-20 chars)"
                 className="w-full bg-white/20 border-2 border-white/30 rounded-xl px-4 py-3 text-white placeholder-gray-400 mb-4 focus:outline-none focus:border-purple-400 text-base"
                 minLength={3}
                 maxLength={20}
@@ -165,7 +165,7 @@ export default function Home() {
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 sm:py-4 px-6 rounded-xl transition-all active:scale-95 text-base"
               >
-                {loading ? '생성 중...' : '닉네임 생성'}
+                {loading ? 'Creating...' : 'Create Nickname'}
               </button>
             </form>
           </div>
