@@ -67,7 +67,29 @@ export default function Home() {
     }
   }
 
-  // OKX Wallet connection
+  // MetaMask 연결
+  const handleMetaMaskConnect = async () => {
+    // @ts-ignore
+    const hasMetaMask = typeof window !== 'undefined' && window.ethereum
+    
+    if (!hasMetaMask) {
+      alert('Please install MetaMask extension first!\n\nDownload: https://metamask.io/download')
+      window.open('https://metamask.io/download', '_blank')
+      return
+    }
+
+    // 첫 번째 injected connector (MetaMask)
+    const metamaskConnector = connectors.find((c, index) => c.id === 'injected' && index === 0)
+    if (metamaskConnector) {
+      try {
+        await connect({ connector: metamaskConnector })
+      } catch (err) {
+        console.error('Connection error:', err)
+      }
+    }
+  }
+
+  // OKX Wallet 연결
   const handleOKXConnect = async () => {
     // @ts-ignore
     const hasOKX = typeof window !== 'undefined' && window.okxwallet
@@ -78,8 +100,8 @@ export default function Home() {
       return
     }
 
-    // Find OKX Wallet connector
-    const okxConnector = connectors.find(c => c.id === 'injected')
+    // 두 번째 injected connector (OKX Wallet)
+    const okxConnector = connectors.find((c, index) => c.id === 'injected' && index === 1)
     if (okxConnector) {
       try {
         await connect({ connector: okxConnector })
@@ -115,16 +137,24 @@ export default function Home() {
               Connect Your Wallet
             </h3>
             <div className="space-y-3">
-              {/* OKX Wallet only */}
+              {/* MetaMask */}
+              <button
+                onClick={handleMetaMaskConnect}
+                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              >
+                🦊 MetaMask
+              </button>
+              
+              {/* OKX Wallet */}
               <button
                 onClick={handleOKXConnect}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg shadow-lg hover:shadow-xl"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
               >
-                🦊 Connect with OKX Wallet
+                💎 OKX Wallet
               </button>
               
               <p className="text-xs text-gray-400 text-center mt-3">
-                Don't have OKX Wallet? Click the button above to install
+                Don't have a wallet? Click the button above to install
               </p>
             </div>
           </div>

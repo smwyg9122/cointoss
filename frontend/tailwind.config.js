@@ -9,8 +9,27 @@ module.exports = {
     extend: {
       keyframes: {
         'coin-flip': {
-          '0%': { transform: 'rotateY(0deg) rotateX(0deg)' },
-          '100%': { transform: 'rotateY(1800deg) rotateX(360deg)' },
+          '0%': { 
+            transform: 'rotateY(0deg) rotateX(0deg) rotateZ(0deg) scale(1)',
+          },
+          '15%': { 
+            transform: 'rotateY(540deg) rotateX(180deg) rotateZ(90deg) scale(1.3)',
+          },
+          '30%': { 
+            transform: 'rotateY(1080deg) rotateX(360deg) rotateZ(180deg) scale(0.9)',
+          },
+          '50%': { 
+            transform: 'rotateY(1800deg) rotateX(540deg) rotateZ(270deg) scale(1.2)',
+          },
+          '70%': { 
+            transform: 'rotateY(2520deg) rotateX(720deg) rotateZ(360deg) scale(0.95)',
+          },
+          '85%': { 
+            transform: 'rotateY(3240deg) rotateX(900deg) rotateZ(450deg) scale(1.1)',
+          },
+          '100%': { 
+            transform: 'rotateY(3600deg) rotateX(1080deg) rotateZ(540deg) scale(1)',
+          },
         },
         'flick-coin-1': {
           '0%, 100%': { 
@@ -115,7 +134,7 @@ module.exports = {
         },
       },
       animation: {
-        'coin-flip': 'coin-flip 6s ease-in-out', // ✅ 6초 회전
+        'coin-flip': 'coin-flip 6s cubic-bezier(0.68, -0.55, 0.27, 1.55)', // ✅ 더 역동적인 easing
         'flick-coin-1': 'flick-coin-1 2s ease-out infinite',
         'flick-coin-2': 'flick-coin-2 2s ease-out infinite',
         'flick-coin-3': 'flick-coin-3 2s ease-out infinite',

@@ -5,7 +5,9 @@ import { injected } from 'wagmi/connectors'
 export const config = createConfig({
   chains: [bscTestnet, bsc],
   connectors: [
-    // OKX Wallet만 사용
+    // MetaMask - 기본 injected
+    injected(),
+    // OKX Wallet - target 지정
     injected({ 
       target: 'okxWallet'
     }),
