@@ -67,10 +67,12 @@ export default function Home() {
     }
   }
 
-  // MetaMask 연결
+  // ✅ 개선된 MetaMask 연결
   const handleMetaMaskConnect = async () => {
+    console.log('=== MetaMask Connect ===')
+    
     // @ts-ignore
-    const hasMetaMask = typeof window !== 'undefined' && window.ethereum
+    const hasMetaMask = typeof window !== 'undefined' && window.ethereum && !window.ethereum.isOkxWallet
     
     if (!hasMetaMask) {
       alert('Please install MetaMask extension first!\n\nDownload: https://metamask.io/download')
@@ -78,19 +80,47 @@ export default function Home() {
       return
     }
 
-    // 첫 번째 injected connector (MetaMask)
-    const metamaskConnector = connectors.find((c, index) => c.id === 'injected' && index === 0)
-    if (metamaskConnector) {
-      try {
-        await connect({ connector: metamaskConnector })
-      } catch (err) {
-        console.error('Connection error:', err)
+    try {
+      // 모든 connector 시도
+      for (const connector of connectors) {
+        console.log('Trying connector:', connector.name, connector.id)
+        
+        // injected connector 찾기
+        if (connector.id === 'injected') {
+          try {
+            // @ts-ignore - provider 확인
+            const provider = await connector.getProvider?.()
+            console.log('Provider check:', provider)
+            
+            // OKX가 아닌 provider (MetaMask)
+            // @ts-ignore
+            if (!provider?.isOkxWallet) {
+              console.log('✅ Found MetaMask connector')
+              await connect({ connector })
+              return
+            }
+          } catch (e) {
+            console.log('Provider check failed:', e)
+          }
+        }
       }
+      
+      // 첫 번째 injected connector 사용 (fallback)
+      const firstInjected = connectors.find(c => c.id === 'injected')
+      if (firstInjected) {
+        console.log('Using first injected connector')
+        await connect({ connector: firstInjected })
+      }
+    } catch (err) {
+      console.error('MetaMask connection error:', err)
+      alert('Failed to connect to MetaMask')
     }
   }
 
-  // OKX Wallet 연결
+  // ✅ 개선된 OKX Wallet 연결
   const handleOKXConnect = async () => {
+    console.log('=== OKX Wallet Connect ===')
+    
     // @ts-ignore
     const hasOKX = typeof window !== 'undefined' && window.okxwallet
     
@@ -100,14 +130,40 @@ export default function Home() {
       return
     }
 
-    // 두 번째 injected connector (OKX Wallet)
-    const okxConnector = connectors.find((c, index) => c.id === 'injected' && index === 1)
-    if (okxConnector) {
-      try {
-        await connect({ connector: okxConnector })
-      } catch (err) {
-        console.error('Connection error:', err)
+    try {
+      // 모든 connector 시도
+      for (const connector of connectors) {
+        console.log('Trying connector:', connector.name, connector.id)
+        
+        if (connector.id === 'injected') {
+          try {
+            // @ts-ignore - provider 확인
+            const provider = await connector.getProvider?.()
+            console.log('Provider check:', provider)
+            
+            // OKX provider 확인
+            // @ts-ignore
+            if (provider?.isOkxWallet || provider === window.okxwallet) {
+              console.log('✅ Found OKX connector')
+              await connect({ connector })
+              return
+            }
+          } catch (e) {
+            console.log('Provider check failed:', e)
+          }
+        }
       }
+      
+      // 마지막 injected connector 사용 (fallback)
+      const allInjected = connectors.filter(c => c.id === 'injected')
+      const lastInjected = allInjected[allInjected.length - 1]
+      if (lastInjected) {
+        console.log('Using last injected connector')
+        await connect({ connector: lastInjected })
+      }
+    } catch (err) {
+      console.error('OKX connection error:', err)
+      alert('Failed to connect to OKX Wallet')
     }
   }
 
