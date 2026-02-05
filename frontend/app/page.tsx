@@ -67,10 +67,26 @@ export default function Home() {
     }
   }
 
-  // ✅ 1번 수정: 지갑 필터링 - Injected(OKX)와 WalletConnect만 표시
-  const filteredConnectors = connectors.filter(connector => 
-    connector.name === 'Injected' || connector.name === 'WalletConnect'
-  )
+  // ✅ 2번 수정: OKX Wallet 직접 연결 함수
+  const handleOKXConnect = () => {
+    // @ts-ignore
+    const hasOKX = typeof window !== 'undefined' && window.okxwallet
+    
+    if (!hasOKX) {
+      alert('Please install OKX Wallet extension first!\n\nDownload: https://www.okx.com/web3')
+      window.open('https://www.okx.com/web3', '_blank')
+      return
+    }
+
+    // OKX Wallet이 있으면 injected connector 사용
+    const injectedConnector = connectors.find(c => c.id === 'injected' || c.name === 'Injected')
+    if (injectedConnector) {
+      connect({ connector: injectedConnector })
+    }
+  }
+
+  // WalletConnect connector만 찾기
+  const walletConnectConnector = connectors.find(c => c.id === 'walletConnect')
 
   if (!mounted) {
     return null
@@ -79,11 +95,14 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black flex items-center justify-center p-4 sm:p-6">
       <div className="max-w-md w-full">
-        {/* ✅ 2번 수정: 로고를 이미지로 교체 (이모지 대신) */}
+        {/* ✅ 3번 수정: 로고를 SVG로 완전히 교체 (이모지 제거) */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex justify-center mb-3 sm:mb-4">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-full flex items-center justify-center shadow-2xl">
-              <span className="text-5xl sm:text-6xl">🪙</span>
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-2xl bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600">
+              <svg className="w-12 h-12 sm:w-14 sm:h-14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2" fill="none"/>
+                <text x="12" y="16" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">$</text>
+              </svg>
             </div>
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2">Coin Toss</h2>
@@ -96,25 +115,23 @@ export default function Home() {
               Connect Your Wallet
             </h3>
             <div className="space-y-3">
-              {filteredConnectors.map((connector) => {
-                let buttonName = connector.name;
-                
-                if (connector.name === 'Injected') {
-                  buttonName = 'OKX Wallet';
-                } else if (connector.name === 'WalletConnect') {
-                  buttonName = 'WalletConnect (토큰포켓)';
-                }
-                
-                return (
-                  <button
-                    key={connector.id}
-                    onClick={() => connect({ connector })}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg"
-                  >
-                    {buttonName}
-                  </button>
-                );
-              })}
+              {/* ✅ 2번 수정: OKX Wallet 직접 연결 */}
+              <button
+                onClick={handleOKXConnect}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg"
+              >
+                OKX Wallet
+              </button>
+              
+              {/* WalletConnect */}
+              {walletConnectConnector && (
+                <button
+                  onClick={() => connect({ connector: walletConnectConnector })}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform active:scale-95 text-base sm:text-lg"
+                >
+                  WalletConnect (토큰포켓)
+                </button>
+              )}
             </div>
           </div>
         ) : (

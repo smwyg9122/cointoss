@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import BankrollDisplay from '@/components/BankrollDisplay'
 import CoinFlip from '@/components/CoinFlip'
 import CoinFlickAnimation from '@/components/CoinFlickAnimation'
+import Image from 'next/image'
 
 const BET_AMOUNTS = [1, 2, 4, 8, 16]
 
@@ -187,7 +188,7 @@ export default function PlayPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-8">
           <BankrollDisplay />
           
-          {/* ✅ 2번 수정: FREE 이모지를 텍스트로 교체 */}
+          {/* ✅ 3번 수정: FREE 이모지 대신 텍스트 배지 */}
           <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border-2 border-green-500/30">
             <div className="flex items-center justify-between">
               <div>
@@ -197,8 +198,8 @@ export default function PlayPage() {
                   {gaslessInfo?.remainingFree || 0} / {gaslessInfo?.maxDaily || 10} free bets today
                 </p>
               </div>
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-500/30 rounded-full flex items-center justify-center border-2 border-green-400">
-                <span className="text-3xl sm:text-4xl font-black text-green-300">0</span>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-500/30 rounded-full flex items-center justify-center border-4 border-green-400">
+                <span className="text-2xl sm:text-3xl font-black text-white">FREE</span>
               </div>
             </div>
           </div>
@@ -277,13 +278,31 @@ export default function PlayPage() {
         />
       )}
 
+      {/* ✅ 1번 수정: 결과 팝업에 동전 이미지 추가 */}
       {showResult && lastResult && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className={`rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl ${lastResult.won ? 'bg-gradient-to-br from-green-600 to-emerald-600' : 'bg-gradient-to-br from-red-600 to-pink-600'}`}>
             <div className="text-center">
               <div className="text-6xl sm:text-8xl mb-4">{lastResult.won ? '🎉' : '😢'}</div>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{lastResult.won ? 'YOU WON!' : 'YOU LOST'}</h2>
-              <div className="text-5xl sm:text-6xl mb-4">{lastResult.outcome === 0 ? '👑' : '🦅'}</div>
+              
+              {/* ✅ 동전 이미지 추가 */}
+              <div className="flex justify-center mb-4">
+                <div className="w-32 h-32 sm:w-40 sm:h-40 relative">
+                  <Image
+                    src={lastResult.outcome === 0 ? '/FUNS_front_logo.png' : '/FUNS_back_logo.png'}
+                    alt={lastResult.outcome === 0 ? 'HEADS' : 'TAILS'}
+                    width={160}
+                    height={160}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+              
+              <p className="text-2xl sm:text-3xl font-bold text-white mb-4">
+                {lastResult.outcome === 0 ? 'HEADS 👑' : 'TAILS 🦅'}
+              </p>
+              
               <p className="text-xl sm:text-2xl text-white mb-4">{lastResult.won ? `+${lastResult.amount} FUNS` : `-${lastResult.amount} FUNS`}</p>
               {lastResult.gasless && (
                 <p className="text-base sm:text-lg text-white/80 mb-4">⛽ Gas fee: FREE 🎁</p>
